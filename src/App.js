@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import './index.css';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 function App() {
   const [fileData, setFileData] = useState({
@@ -49,13 +50,26 @@ function App() {
       Batch: row["Batch Alignment %"] || 0
     }));
 
-    const filteredGoodData = selectedSLocs.alignment
-      ? fileData.goodData.filter(row => row["SLoc"] === selectedSLocs.alignment)
-      : [];
+    const dataForChart = alignmentData.map(item => ({
+      name: item.SLoc,
+      totalAlignment: item.Total,
+      batchAlignment: item.Batch
+    }));
 
     return (
       <>
         <h2>📊 Alignment Summary</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={dataForChart}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="totalAlignment" fill="#8884d8" />
+            <Bar dataKey="batchAlignment" fill="#82ca9d" />
+          </BarChart>
+        </ResponsiveContainer>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           {alignmentData.map((item, idx) => (
             <div
@@ -69,29 +83,6 @@ function App() {
             </div>
           ))}
         </div>
-        {selectedSLocs.alignment && (
-          <>
-            <h3>Details for {selectedSLocs.alignment}</h3>
-            <table border="1" cellPadding="5">
-              <thead>
-                <tr>
-                  {Object.keys(filteredGoodData[0] || {}).map((col, idx) => (
-                    <th key={idx}>{col}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredGoodData.map((row, i) => (
-                  <tr key={i}>
-                    {Object.values(row).map((cell, j) => (
-                      <td key={j}>{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
       </>
     );
   };
