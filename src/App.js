@@ -13,8 +13,6 @@ function App() {
     shortRisk: [],
     transactionCheck: []
   });
-  const [activeTab, setActiveTab] = useState("alignment");
-
   const [selectedSLocs, setSelectedSLocs] = useState({
     alignment: null,
     adjustments: "All",
@@ -22,7 +20,7 @@ function App() {
     shortRisk: "All",
     transaction: "All"
   });
-  const [selectedBucket, setSelectedBucket] = useState("All");
+  const [activeTab, setActiveTab] = useState("alignment");
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -44,6 +42,199 @@ function App() {
     reader.readAsBinaryString(file);
   };
 
+  const renderAlignment = () => {
+    const alignmentData = fileData.alignment.map(row => ({
+      SLoc: row["SLoc"],
+      Total: row["Alignment %"] || 0,
+      Batch: row["Batch Alignment %"] || 0
+    }));
+
+    const filteredGoodData = selectedSLocs.alignment
+      ? fileData.goodData.filter(row => row["SLoc"] === selectedSLocs.alignment)
+      : [];
+
+    return (
+      <>
+        <h2>📊 Alignment Summary</h2>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          {alignmentData.map((item, idx) => (
+            <div
+              key={idx}
+              style={{ border: '1px solid #ccc', padding: '1rem', cursor: 'pointer' }}
+              onClick={() => setSelectedSLocs(prev => ({ ...prev, alignment: item.SLoc }))}
+            >
+              <strong>{item.SLoc}</strong><br />
+              Total: {item.Total}%<br />
+              Batch: {item.Batch}%
+            </div>
+          ))}
+        </div>
+        {selectedSLocs.alignment && (
+          <>
+            <h3>Details for {selectedSLocs.alignment}</h3>
+            <table border="1" cellPadding="5">
+              <thead>
+                <tr>
+                  {Object.keys(filteredGoodData[0] || {}).map((col, idx) => (
+                    <th key={idx}>{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredGoodData.map((row, i) => (
+                  <tr key={i}>
+                    {Object.values(row).map((cell, j) => (
+                      <td key={j}>{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </>
+    );
+  };
+
+  const renderBatchMovements = () => (
+    <>
+      <h2>🚛 Batch Movements</h2>
+      <table border="1" cellPadding="5">
+        <thead>
+          <tr>
+            {Object.keys(fileData.batchMovements[0] || {}).map((col, idx) => (
+              <th key={idx}>{col}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {fileData.batchMovements.map((row, i) => (
+            <tr key={i}>
+              {Object.values(row).map((cell, j) => (
+                <td key={j}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+
+  const renderBatchAdjustments = () => {
+    const slocs = Array.from(new Set(fileData.batchAdjustments.map(row => row["SLoc"]))).sort();
+    const filtered = selectedSLocs.adjustments === "All"
+      ? fileData.batchAdjustments
+      : fileData.batchAdjustments.filter(r => r["SLoc"] === selectedSLocs.adjustments);
+
+    return (
+      <>
+        <h2>🔧 Batch Adjustments</h2>
+        <select onChange={e => setSelectedSLocs(prev => ({ ...prev, adjustments: e.target.value }))} value={selectedSLocs.adjustments}>
+          <option value="All">All</option>
+          {slocs.map((s, i) => <option key={i} value={s}>{s}</option>)}
+        </select>
+        <table border="1" cellPadding="5">
+          <thead>
+            <tr>
+              {Object.keys(filtered[0] || {}).map((col, idx) => (
+                <th key={idx}>{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row, i) => (
+              <tr key={i}>
+                {Object.values(row).map((cell, j) => (
+                  <td key={j}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    );
+  };
+
+  const renderExpiredBatches = () => {
+    const buckets = Array.from(new Set(fileData.expiredBatches.map(row => row["Bucket"]))).sort();
+    const slocs = Array.from(new Set(fileData.expiredBatches.map(row => row["SLoc"]))).sort();
+
+    const filtered = fileData.expiredBatches.filter(row => {
+      const bucketMatch = selectedBucket === "All" || row["Bucket"] === selectedBucket;
+      const slocMatch = selectedSLocs.expired === "All" || row["SLoc"] === selectedSLocs.expired;
+      return bucketMatch && slocMatch;
+    });
+
+    return (
+      <>
+        <h2>⏳ Expired Batches</h2>
+        <div>
+          {buckets.map((b, i) => (
+            <button key={i} onClick={() => setSelectedBucket(b)}>{b}</button>
+          ))}
+          <button onClick={() => setSelectedBucket("All")}>All</button>
+        </div>
+        <select onChange={e => setSelectedSLocs(prev => ({ ...prev, expired: e.target.value }))} value={selectedSLocs.expired}>
+          <option value="All">All</option>
+          {slocs.map((s, i) => <option key={i} value={s}>{s}</option>)}
+        </select>
+        <table border="1" cellPadding="5">
+          <thead>
+            <tr>
+              {Object.keys(filtered[0] || {}).map((col, idx) => (
+                <th key={idx}>{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row, i) => (
+              <tr key={i}>
+                {Object.values(row).map((cell, j) => (
+                  <td key={j}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    );
+  };
+
+  const renderShortRisk = () => {
+    const slocs = Array.from(new Set(fileData.shortRisk.map(row => row["SLoc"]))).sort();
+    const filtered = selectedSLocs.shortRisk === "All"
+      ? fileData.shortRisk
+      : fileData.shortRisk.filter(row => row["SLoc"] === selectedSLocs.shortRisk);
+
+    return (
+      <>
+        <h2>🚨 Short Risk SKUs</h2>
+        <select onChange={e => setSelectedSLocs(prev => ({ ...prev, shortRisk: e.target.value }))} value={selectedSLocs.shortRisk}>
+          <option value="All">All</option>
+          {slocs.map((s, i) => <option key={i} value={s}>{s}</option>)}
+        </select>
+        <table border="1" cellPadding="5">
+          <thead>
+            <tr>
+              {Object.keys(filtered[0] || {}).map((col, idx) => (
+                <th key={idx}>{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row, i) => (
+              <tr key={i} style={{ backgroundColor: row["Total Confirmed Qty"] === 0 || row["Short Risk Priority"] === 1 ? "#ffd6d6" : "transparent" }}>
+                {Object.values(row).map((cell, j) => (
+                  <td key={j}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    );
+  };
+
   const renderTransactionCheck = () => {
     const slocs = Array.from(new Set(fileData.transactionCheck.map(row => row["SLoc"]))).sort();
     const filtered = selectedSLocs.transaction === "All"
@@ -53,18 +244,10 @@ function App() {
     return (
       <>
         <h2>🧾 Transaction Check</h2>
-        <div style={{ marginBottom: '1rem' }}>
-          <label><strong>Filter by SLoc: </strong></label>
-          <select
-            onChange={e =>
-              setSelectedSLocs(prev => ({ ...prev, transaction: e.target.value }))
-            }
-            value={selectedSLocs.transaction}
-          >
-            <option value="All">All</option>
-            {slocs.map((s, i) => <option key={i} value={s}>{s}</option>)}
-          </select>
-        </div>
+        <select onChange={e => setSelectedSLocs(prev => ({ ...prev, transaction: e.target.value }))} value={selectedSLocs.transaction}>
+          <option value="All">All</option>
+          {slocs.map((s, i) => <option key={i} value={s}>{s}</option>)}
+        </select>
         <table border="1" cellPadding="5">
           <thead>
             <tr>
@@ -106,11 +289,11 @@ function App() {
         <hr />
         {fileData.alignment.length > 0 && (
           <>
-            {activeTab === "alignment" && <div>👷 Alignment view here</div>}
-            {activeTab === "batchMove" && <div>🚛 Batch movement view here</div>}
-            {activeTab === "adjustments" && <div>🔧 Adjustments view here</div>}
-            {activeTab === "expired" && <div>⏳ Expired batches view here</div>}
-            {activeTab === "shortRisk" && <div>🚨 Short Risk view here</div>}
+            {activeTab === "alignment" && renderAlignment()}
+            {activeTab === "batchMove" && renderBatchMovements()}
+            {activeTab === "adjustments" && renderBatchAdjustments()}
+            {activeTab === "expired" && renderExpiredBatches()}
+            {activeTab === "shortRisk" && renderShortRisk()}
             {activeTab === "transaction" && renderTransactionCheck()}
           </>
         )}
