@@ -10,14 +10,19 @@ function App() {
     batchMovements: [],
     batchAdjustments: [],
     expiredBatches: [],
-    shortRisk: []
+    shortRisk: [],
+    transactionCheck: []
   });
-  const [selectedSLoc, setSelectedSLoc] = useState(null);
   const [activeTab, setActiveTab] = useState("alignment");
-  const [selectedAdjustmentSLoc, setSelectedAdjustmentSLoc] = useState("All");
+
+  const [selectedSLocs, setSelectedSLocs] = useState({
+    alignment: null,
+    adjustments: "All",
+    expired: "All",
+    shortRisk: "All",
+    transaction: "All"
+  });
   const [selectedBucket, setSelectedBucket] = useState("All");
-  const [selectedExpiredSLoc, setSelectedExpiredSLoc] = useState("All");
-  const [selectedShortSLoc, setSelectedShortSLoc] = useState("All");
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -26,37 +31,36 @@ function App() {
       const bstr = evt.target.result;
       const wb = XLSX.read(bstr, { type: 'binary' });
 
-      const alignmentSheet = wb.Sheets["Alignment Summary"];
-      const goodSheet = wb.Sheets["Good Data"];
-      const batchMoveSheet = wb.Sheets["Batch Movements"];
-      const batchAdjustSheet = wb.Sheets["Batch Adjustments"];
-      const expiredSheet = wb.Sheets["Expired Batches"];
-      const shortSheet = wb.Sheets["Short Risk SKUs"];
-
       setFileData({
-        alignment: XLSX.utils.sheet_to_json(alignmentSheet),
-        goodData: XLSX.utils.sheet_to_json(goodSheet),
-        batchMovements: XLSX.utils.sheet_to_json(batchMoveSheet),
-        batchAdjustments: XLSX.utils.sheet_to_json(batchAdjustSheet),
-        expiredBatches: XLSX.utils.sheet_to_json(expiredSheet),
-        shortRisk: XLSX.utils.sheet_to_json(shortSheet)
+        alignment: XLSX.utils.sheet_to_json(wb.Sheets["Alignment Summary"]),
+        goodData: XLSX.utils.sheet_to_json(wb.Sheets["Good Data"]),
+        batchMovements: XLSX.utils.sheet_to_json(wb.Sheets["Batch Movements"]),
+        batchAdjustments: XLSX.utils.sheet_to_json(wb.Sheets["Batch Adjustments"]),
+        expiredBatches: XLSX.utils.sheet_to_json(wb.Sheets["Expired Batches"]),
+        shortRisk: XLSX.utils.sheet_to_json(wb.Sheets["Short Risk SKUs"]),
+        transactionCheck: XLSX.utils.sheet_to_json(wb.Sheets["Transaction Check"])
       });
     };
     reader.readAsBinaryString(file);
   };
 
-  const renderShortRisk = () => {
-    const slocs = Array.from(new Set(fileData.shortRisk.map(row => row["SLoc"]))).sort();
-    const filtered = selectedShortSLoc === "All"
-      ? fileData.shortRisk
-      : fileData.shortRisk.filter(row => row["SLoc"] === selectedShortSLoc);
+  const renderTransactionCheck = () => {
+    const slocs = Array.from(new Set(fileData.transactionCheck.map(row => row["SLoc"]))).sort();
+    const filtered = selectedSLocs.transaction === "All"
+      ? fileData.transactionCheck
+      : fileData.transactionCheck.filter(row => row["SLoc"] === selectedSLocs.transaction);
 
     return (
       <>
-        <h2>🚨 Short Risk SKUs</h2>
+        <h2>🧾 Transaction Check</h2>
         <div style={{ marginBottom: '1rem' }}>
           <label><strong>Filter by SLoc: </strong></label>
-          <select onChange={e => setSelectedShortSLoc(e.target.value)} value={selectedShortSLoc}>
+          <select
+            onChange={e =>
+              setSelectedSLocs(prev => ({ ...prev, transaction: e.target.value }))
+            }
+            value={selectedSLocs.transaction}
+          >
             <option value="All">All</option>
             {slocs.map((s, i) => <option key={i} value={s}>{s}</option>)}
           </select>
@@ -71,12 +75,7 @@ function App() {
           </thead>
           <tbody>
             {filtered.map((row, i) => (
-              <tr key={i} style={{
-                backgroundColor:
-                  row["Total Confirmed Qty"] === 0 || row["Short Risk Priority"] === 1
-                    ? "#ffd6d6"
-                    : "transparent"
-              }}>
+              <tr key={i} style={{ backgroundColor: row["SYS DIF"] !== 0 ? "#ffd6d6" : "transparent" }}>
                 {Object.values(row).map((cell, j) => (
                   <td key={j}>{cell}</td>
                 ))}
@@ -98,6 +97,7 @@ function App() {
           <li><button onClick={() => setActiveTab("adjustments")}>Batch Adjustments</button></li>
           <li><button onClick={() => setActiveTab("expired")}>Expired Batches</button></li>
           <li><button onClick={() => setActiveTab("shortRisk")}>Short Risk SKUs</button></li>
+          <li><button onClick={() => setActiveTab("transaction")}>Transaction Check</button></li>
         </ul>
       </div>
       <div style={{ flex: 1, padding: '2rem' }}>
@@ -106,22 +106,17 @@ function App() {
         <hr />
         {fileData.alignment.length > 0 && (
           <>
-            {activeTab === "alignment" && renderAlignment()}
-            {activeTab === "batchMove" && renderBatchMovements()}
-            {activeTab === "adjustments" && renderBatchAdjustments()}
-            {activeTab === "expired" && renderExpiredBatches()}
-            {activeTab === "shortRisk" && renderShortRisk()}
+            {activeTab === "alignment" && <div>👷 Alignment view here</div>}
+            {activeTab === "batchMove" && <div>🚛 Batch movement view here</div>}
+            {activeTab === "adjustments" && <div>🔧 Adjustments view here</div>}
+            {activeTab === "expired" && <div>⏳ Expired batches view here</div>}
+            {activeTab === "shortRisk" && <div>🚨 Short Risk view here</div>}
+            {activeTab === "transaction" && renderTransactionCheck()}
           </>
         )}
       </div>
     </div>
   );
 }
-
-// Reuse existing rendering logic from earlier versions
-function renderAlignment() { return <div>👷 Alignment view here</div>; }
-function renderBatchMovements() { return <div>🚛 Batch movement view here</div>; }
-function renderBatchAdjustments() { return <div>🔧 Adjustments view here</div>; }
-function renderExpiredBatches() { return <div>⏳ Expired batches view here</div>; }
 
 export default App;
