@@ -16,7 +16,9 @@ function App() {
   const [alignmentData, setAlignmentData] = useState([]);
   const [goodData, setGoodData] = useState([]);
   const [batchMovements, setBatchMovements] = useState([]);
+  const [batchAdjustments, setBatchAdjustments] = useState([]);
   const [selectedSLoc, setSelectedSLoc] = useState(null);
+  const [selectedAdjustmentSLoc, setSelectedAdjustmentSLoc] = useState("All");
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -25,7 +27,6 @@ function App() {
       const bstr = evt.target.result;
       const wb = XLSX.read(bstr, { type: 'binary' });
 
-      // Parse alignment summary
       const alignmentSheet = wb.Sheets["Alignment Summary"];
       const alignmentJson = XLSX.utils.sheet_to_json(alignmentSheet);
       const aligned = alignmentJson.map(row => ({
@@ -35,15 +36,17 @@ function App() {
       }));
       setAlignmentData(aligned);
 
-      // Parse good data
       const goodDataSheet = wb.Sheets["Good Data"];
       const goodJson = XLSX.utils.sheet_to_json(goodDataSheet);
       setGoodData(goodJson);
 
-      // Parse Batch Movements
       const batchMoveSheet = wb.Sheets["Batch Movements"];
       const batchMoveJson = XLSX.utils.sheet_to_json(batchMoveSheet);
       setBatchMovements(batchMoveJson);
+
+      const batchAdjustSheet = wb.Sheets["Batch Adjustments"];
+      const batchAdjustJson = XLSX.utils.sheet_to_json(batchAdjustSheet);
+      setBatchAdjustments(batchAdjustJson);
     };
     reader.readAsBinaryString(file);
   };
@@ -57,6 +60,11 @@ function App() {
   const filteredGoodData = selectedSLoc
     ? goodData.filter(row => row["SLoc"] === selectedSLoc)
     : [];
+
+  const adjustmentSLocs = Array.from(new Set(batchAdjustments.map(row => row["SLoc"]))).sort();
+  const filteredAdjustments = selectedAdjustmentSLoc === "All"
+    ? batchAdjustments
+    : batchAdjustments.filter(row => row["SLoc"] === selectedAdjustmentSLoc);
 
   return (
     <div>
@@ -121,6 +129,39 @@ function App() {
             </thead>
             <tbody>
               {batchMovements.map((row, i) => (
+                <tr key={i}>
+                  {Object.values(row).map((cell, j) => (
+                    <td key={j}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {batchAdjustments.length > 0 && (
+        <div style={{ marginTop: '2rem' }}>
+          <h2>🔧 Batch Adjustments</h2>
+          <div style={{ marginBottom: '1rem' }}>
+            <label><strong>Filter by SLoc: </strong></label>
+            <select onChange={e => setSelectedAdjustmentSLoc(e.target.value)} value={selectedAdjustmentSLoc}>
+              <option value="All">All</option>
+              {adjustmentSLocs.map((sloc, i) => (
+                <option key={i} value={sloc}>{sloc}</option>
+              ))}
+            </select>
+          </div>
+          <table border="1" cellPadding="5">
+            <thead>
+              <tr>
+                {Object.keys(filteredAdjustments[0] || {}).map((col, idx) => (
+                  <th key={idx}>{col}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAdjustments.map((row, i) => (
                 <tr key={i}>
                   {Object.values(row).map((cell, j) => (
                     <td key={j}>{cell}</td>
