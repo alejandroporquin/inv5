@@ -15,6 +15,7 @@ import {
 function App() {
   const [alignmentData, setAlignmentData] = useState([]);
   const [goodData, setGoodData] = useState([]);
+  const [batchMovements, setBatchMovements] = useState([]);
   const [selectedSLoc, setSelectedSLoc] = useState(null);
 
   const handleFileUpload = (e) => {
@@ -38,6 +39,11 @@ function App() {
       const goodDataSheet = wb.Sheets["Good Data"];
       const goodJson = XLSX.utils.sheet_to_json(goodDataSheet);
       setGoodData(goodJson);
+
+      // Parse Batch Movements
+      const batchMoveSheet = wb.Sheets["Batch Movements"];
+      const batchMoveJson = XLSX.utils.sheet_to_json(batchMoveSheet);
+      setBatchMovements(batchMoveJson);
     };
     reader.readAsBinaryString(file);
   };
@@ -91,6 +97,30 @@ function App() {
             </thead>
             <tbody>
               {filteredGoodData.map((row, i) => (
+                <tr key={i}>
+                  {Object.values(row).map((cell, j) => (
+                    <td key={j}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {batchMovements.length > 0 && (
+        <div style={{ marginTop: '2rem' }}>
+          <h2>🚛 Batch Movements</h2>
+          <table border="1" cellPadding="5">
+            <thead>
+              <tr>
+                {Object.keys(batchMovements[0] || {}).map((col, idx) => (
+                  <th key={idx}>{col}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {batchMovements.map((row, i) => (
                 <tr key={i}>
                   {Object.values(row).map((cell, j) => (
                     <td key={j}>{cell}</td>
