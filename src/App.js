@@ -21,6 +21,7 @@ function App() {
     shortRisk: "All",
     transaction: "All"
   });
+  const [selectedBucket, setSelectedBucket] = useState("All");
   const [activeTab, setActiveTab] = useState("alignment");
 
   const handleFileUpload = (e) => {
