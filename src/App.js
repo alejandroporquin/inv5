@@ -13,24 +13,9 @@ import {
 } from 'recharts';
 
 function App() {
-  const [data, setData] = useState([]);
-  const [chartData, setChartData] = useState([
-    { SLoc: 'US10', Total: 92, Batch: 89 },
-    { SLoc: 'BU90', Total: 95, Batch: 94 },
-    { SLoc: 'US40', Total: 88, Batch: 84 }
-  ]);
-
-  useEffect(() => {
-    fetch('sample_inventory.xlsx')
-      .then(res => res.arrayBuffer())
-      .then(ab => {
-        const wb = XLSX.read(ab, { type: 'array' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        setData(jsonData);
-      });
-  }, []);
+  const [alignmentData, setAlignmentData] = useState([]);
+  const [goodData, setGoodData] = useState([]);
+  const [selectedSLoc, setSelectedSLoc] = useState(null);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -38,40 +23,76 @@ function App() {
     reader.onload = (evt) => {
       const bstr = evt.target.result;
       const wb = XLSX.read(bstr, { type: 'binary' });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      setData(jsonData);
+
+      // Parse alignment summary
+      const alignmentSheet = wb.Sheets["Alignment Summary"];
+      const alignmentJson = XLSX.utils.sheet_to_json(alignmentSheet);
+      const aligned = alignmentJson.map(row => ({
+        SLoc: row["SLoc"],
+        Total: row["Alignment %"] ? Number(row["Alignment %"]) : 0,
+        Batch: row["Batch Alignment %"] ? Number(row["Batch Alignment %"]) : 0
+      }));
+      setAlignmentData(aligned);
+
+      // Parse good data
+      const goodDataSheet = wb.Sheets["Good Data"];
+      const goodJson = XLSX.utils.sheet_to_json(goodDataSheet);
+      setGoodData(goodJson);
     };
     reader.readAsBinaryString(file);
   };
+
+  const handleBarClick = (data) => {
+    if (data && data.activeLabel) {
+      setSelectedSLoc(data.activeLabel);
+    }
+  };
+
+  const filteredGoodData = selectedSLoc
+    ? goodData.filter(row => row["SLoc"] === selectedSLoc)
+    : [];
 
   return (
     <div>
       <h1>📦 Inventory Dashboard</h1>
       <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
-      <div style={{ width: '100%', height: 400, marginTop: '2rem' }}>
-        <h2>📊 Alignment by SLoc</h2>
-        <ResponsiveContainer>
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="SLoc" />
-            <YAxis domain={[0, 100]} unit="%" />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="Total" fill="#8884d8" name="Total Alignment %" />
-            <Bar dataKey="Batch" fill="#82ca9d" name="Batch Alignment %" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      {data.length > 0 && (
+
+      {alignmentData.length > 0 && (
+        <div style={{ width: '100%', height: 400, marginTop: '2rem' }}>
+          <h2>📊 Alignment by SLoc</h2>
+          <ResponsiveContainer>
+            <BarChart
+              data={alignmentData}
+              margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+              onClick={handleBarClick}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="SLoc" />
+              <YAxis domain={[0, 100]} unit="%" />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="Total" fill="#8884d8" name="Total Alignment %" />
+              <Bar dataKey="Batch" fill="#82ca9d" name="Batch Alignment %" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {selectedSLoc && (
         <div style={{ marginTop: '2rem' }}>
-          <h2>📋 Data Preview</h2>
+          <h2>📋 SKU Detail for {selectedSLoc}</h2>
           <table border="1" cellPadding="5">
+            <thead>
+              <tr>
+                {Object.keys(filteredGoodData[0] || {}).map((col, idx) => (
+                  <th key={idx}>{col}</th>
+                ))}
+              </tr>
+            </thead>
             <tbody>
-              {data.slice(0, 10).map((row, i) => (
+              {filteredGoodData.map((row, i) => (
                 <tr key={i}>
-                  {row.map((cell, j) => (
+                  {Object.values(row).map((cell, j) => (
                     <td key={j}>{cell}</td>
                   ))}
                 </tr>
